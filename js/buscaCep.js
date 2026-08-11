@@ -105,9 +105,8 @@ for (let uf of ufs) {
 
 //#endregion
 
-//corpo da tabela e API
 async function viaCep() {
-    let cep = inputCep.value.trim();
+    let cep = inputCep.value.trim().replace(/\D/g, ''); // Remove caracteres não numéricos
 
     let uf = inputUf.value.trim();
     let city = inputCity.value.trim();
@@ -116,6 +115,19 @@ async function viaCep() {
     let url = '';
 
     if (cep !== '') {
+        
+        // Pega a lista de histórico ou inicia um objeto vazio
+        const historicoCeps = JSON.parse(localStorage.getItem('cepsBuscados')) || {};
+
+        // Verifica se o CEP já foi buscado anteriormente
+        if (historicoCeps[cep]) {
+            historicoCeps[cep] += 1;
+            localStorage.setItem('cepsBuscados', JSON.stringify(historicoCeps));
+
+            alert(`Você já buscou o CEP ${cep} ${historicoCeps[cep]} vezes. A busca foi bloqueada para evitar repetições.`);
+            return;
+        }
+
         // URL de busca por CEP único
         url = `https://viacep.com.br/ws/${cep}/json/`;
     } else {
@@ -136,11 +148,20 @@ async function viaCep() {
             throw new Error('CEP não encontrado.');
         }
 
+        // Cadastra o CEP no LocalStorage
+        if (cep !== '') {
+            const historicoCeps = JSON.parse(localStorage.getItem('cepsBuscados')) || {};
+            historicoCeps[cep] = 1; // Marca que foi buscado 1 vez
+            localStorage.setItem('cepsBuscados', JSON.stringify(historicoCeps));
+        }
+
         const listaEnderecos = Array.isArray(dados) ? dados : [dados];
-        const dados_info = ['cep', 'uf', 'localidade', 'bairro', 'logradouro']; //informações que irão ser capturadas
+        const dados_info = ['cep', 'uf', 'localidade', 'bairro', 'logradouro']; 
 
         //#region criando a tabela
-        
+        // Limpa a tabela antes de adicionar novas linhas
+        buscaCepTable.innerHTML = '';
+
         listaEnderecos.forEach((adress) => {
             const tr = document.createElement('tr');
             tr.classList.add("linTable");
@@ -149,36 +170,17 @@ async function viaCep() {
                 const td = document.createElement('td');
                 td.classList.add("colTable");
 
-                td.innerHTML = adress[info] || ''; // ||'' => se der ruim fica vazio inicialmente
+                td.innerHTML = adress[info] || ''; 
 
                 tr.appendChild(td);
-            })
+            });
 
             buscaCepTable.appendChild(tr);
-        })
-
+        });
         //#endregion
 
     } catch (error) {
-        console.error('Erro ao buscar posts:', error);
-        buscaCepTable.innerHTML = '<p style="color: red;">Erro ao carregar os posts.</p>';
+        console.error('Erro ao buscar endereço:', error);
+        buscaCepTable.innerHTML = `<p style="color: red;">${error.message}</p>`;
     }
 }
-//#endregion
-
-//#region funções
-async function statesSelect() {
-    try {
-        const resposta = await fetch('../json/states.json');
-        /* 
-        await = Espera uma resposta antes de ir para próxima linha
-        fetch = Pega o valor do json
-        */
-
-        const obj = await resposta.json(); //transforma em objeto JS
-        return obj;
-    } catch (erro) {
-        console.log('Erro ao carregar states.json', erro);
-    }
-}
-//#endregion
